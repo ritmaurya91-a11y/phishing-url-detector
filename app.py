@@ -1,35 +1,41 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from feature_extractor import extract_features
 
-st.set_page_config(page_title="Phishing URL Detector")
+st.set_page_config(page_title="Phishing URL Detector", layout="centered")
 
 st.title("🔐 AI Powered Phishing URL Detector")
-st.markdown("Detect whether a website URL is Phishing or Legitimate")
+st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
 
 # ---------------------------
-# Train Model Using Extracted Features
+# Train Model Safely
 # ---------------------------
 @st.cache_resource
 def train_model():
     data = pd.read_csv("phishing.csv")
 
-    # If dataset contains URL column
+    # If dataset contains raw URLs
     if "url" in data.columns:
         feature_list = []
-
         for url in data["url"]:
-            feature_list.append(extract_features(url))
+            feature_list.append(extract_features(str(url)))
 
         X = pd.DataFrame(feature_list)
-        y = data.iloc[:, -1]   # last column as label
+        y = data.iloc[:, -1]
     else:
-        # If dataset already numeric
         X = data.iloc[:, :-1]
         y = data.iloc[:, -1]
+
+    # Convert to numeric safely
+    X = X.apply(pd.to_numeric, errors="coerce").fillna(0)
+    y = pd.to_numeric(y, errors="coerce").fillna(0)
+
+    X = X.astype(float)
+    y = y.astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
@@ -46,7 +52,7 @@ model, accuracy = train_model()
 st.success(f"Model Accuracy: {accuracy*100:.2f}%")
 
 # ---------------------------
-# User Input
+# URL Input
 # ---------------------------
 url = st.text_input("Enter Website URL")
 
