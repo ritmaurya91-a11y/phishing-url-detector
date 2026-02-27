@@ -8,13 +8,20 @@ st.set_page_config(page_title="AI Phishing Detector", page_icon="🔐")
 st.title("🔐 AI Powered Phishing URL Detector")
 st.write("Enter a website URL to check whether it is Legitimate or Phishing.")
 
-# =========================
-# Smart AI Detection Logic
-# =========================
+# ==============================
+# Smart AI Phishing Detection
+# ==============================
 def detect_phishing(url):
     score = 0
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
+
+    # Remove www
+    if domain.startswith("www."):
+        domain = domain[4:]
+
+    # Extract main domain name
+    domain_name = domain.split(".")[0]
 
     suspicious_keywords = [
         "login", "verify", "update", "secure",
@@ -22,8 +29,8 @@ def detect_phishing(url):
     ]
 
     popular_brands = [
-        "google.com", "facebook.com", "amazon.com",
-        "paypal.com", "bankofamerica.com", "microsoft.com"
+        "google", "facebook", "amazon",
+        "paypal", "microsoft", "bankofamerica"
     ]
 
     # 1️⃣ HTTPS Check
@@ -32,63 +39,65 @@ def detect_phishing(url):
 
     # 2️⃣ IP Address in URL
     if re.search(r"\d+\.\d+\.\d+\.\d+", url):
-        score += 25
+        score += 40
 
     # 3️⃣ Suspicious Keywords
     for word in suspicious_keywords:
         if word in url.lower():
             score += 15
 
-    # 4️⃣ Long URL
-    if len(url) > 120:
+    # 4️⃣ Very Long URL
+    if len(url) > 100:
         score += 10
 
     # 5️⃣ Too Many Hyphens
     if url.count("-") > 2:
         score += 10
 
-    # 6️⃣ Brand Imitation Detection (Typosquatting)
+    # 6️⃣ 🔥 Strong Brand Typosquatting Detection
     for brand in popular_brands:
-        similarity = SequenceMatcher(None, domain, brand).ratio()
-        if 0.75 < similarity < 1:
-            score += 30
+        similarity = SequenceMatcher(None, domain_name, brand).ratio()
 
-    # Decision
+        # Very similar but not exact match
+        if similarity > 0.80 and domain_name != brand:
+            score += 60
+
+    # Final Decision
     if score >= 50:
         return 1, min(score, 100)
     else:
         return 0, 100 - score
 
 
-# =========================
-# AI Explanation
-# =========================
+# ==============================
+# AI Explanation Generator
+# ==============================
 def generate_ai_description(url, prediction, confidence):
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
 
-    description = ""
+    explanation = ""
 
     if parsed.scheme != "https":
-        description += "⚠️ The website does not use HTTPS encryption. "
+        explanation += "⚠️ The website does not use HTTPS encryption. "
 
     if re.search(r"\d+\.\d+\.\d+\.\d+", url):
-        description += "⚠️ The URL contains an IP address instead of a domain name. "
+        explanation += "⚠️ The URL contains an IP address instead of a domain name. "
 
-    if len(url) > 120:
-        description += "⚠️ The URL is unusually long. "
+    if len(url) > 100:
+        explanation += "⚠️ The URL is unusually long. "
 
     if prediction == 1:
-        description += f"\n\n🚨 The AI system classified this website as **Phishing** with {confidence:.2f}% risk score."
+        explanation += f"\n\n🚨 The AI system classified this website as **Phishing** with {confidence:.2f}% risk score."
     else:
-        description += f"\n\n✅ The AI system classified this website as **Legitimate** with {confidence:.2f}% safety score."
+        explanation += f"\n\n✅ The AI system classified this website as **Legitimate** with {confidence:.2f}% safety score."
 
-    return description
+    return explanation
 
 
-# =========================
-# User Input
-# =========================
+# ==============================
+# User Input Section
+# ==============================
 url = st.text_input("Enter Website URL")
 
 if st.button("Check URL"):
