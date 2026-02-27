@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 st.set_page_config(page_title="AI Phishing Detector", layout="centered")
 
 st.title("🔐 AI Powered Phishing URL Detector")
-st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
 
 # ---------------------------
 # Train Model
@@ -19,11 +18,11 @@ def train_model():
     data = pd.read_csv("phishing.csv")
 
     if "url" in data.columns:
-        feature_list = []
-        for url in data["url"]:
-            feature_list.append(extract_features(str(url)))
+        features = []
+        for u in data["url"]:
+            features.append(extract_features(str(u)))
 
-        X = pd.DataFrame(feature_list)
+        X = pd.DataFrame(features)
         y = data.iloc[:, -1]
     else:
         X = data.iloc[:, :-1]
@@ -47,48 +46,44 @@ def train_model():
 model = train_model()
 
 # ---------------------------
-# AI Explanation Generator
+# AI Description Generator
 # ---------------------------
-def generate_ai_explanation(url, prediction, confidence):
+def generate_ai_description(url, prediction, confidence):
     parsed = urlparse(url)
+    description = ""
 
-    reasons = []
+    if prediction == 1:
+        description += "This website shows multiple suspicious characteristics commonly associated with phishing attacks. "
 
-    if len(url) > 100:
-        reasons.append("The URL is unusually long, which is common in phishing attacks.")
+        if len(url) > 100:
+            description += "The URL length is unusually long, which attackers often use to hide malicious intent. "
 
-    if url.count("-") > 2:
-        reasons.append("Multiple hyphens detected in the domain, often used in fake websites.")
+        if url.count("-") > 2:
+            description += "Excessive hyphen usage suggests possible domain impersonation. "
 
-    if "@" in url:
-        reasons.append("The '@' symbol can redirect users and is suspicious.")
+        if parsed.scheme != "https":
+            description += "The absence of HTTPS encryption reduces security and increases risk. "
 
-    if parsed.scheme != "https":
-        reasons.append("The website is not using HTTPS, which reduces security.")
+        if any(char.isdigit() for char in parsed.netloc):
+            description += "The presence of numbers in the domain may indicate brand mimicry attempts. "
 
-    if any(char.isdigit() for char in parsed.netloc):
-        reasons.append("Numbers detected in the domain, sometimes used to mimic real brands.")
+        description += f"Based on feature analysis, the model classified this site as high-risk with {confidence:.2f}% confidence."
 
-    if not reasons:
-        reasons.append("The URL structure appears normal with no major suspicious patterns.")
+    else:
+        description += "The website structure appears consistent with legitimate domains. "
 
-    result_type = "Phishing" if prediction == 1 else "Legitimate"
+        if parsed.scheme == "https":
+            description += "It uses secure HTTPS encryption. "
 
-    explanation = f"""
-### 🤖 AI Security Analysis
+        if len(url) < 100:
+            description += "The URL length is within a normal range. "
 
-**Prediction:** {result_type}  
-**Confidence Level:** {confidence:.2f}%
+        if url.count("-") <= 2:
+            description += "There are no excessive special characters in the domain. "
 
-**Why?**
+        description += f"The model considers this site low-risk with {confidence:.2f}% confidence."
 
-"""
-    for r in reasons:
-        explanation += f"- {r}\n"
-
-    explanation += "\nThis analysis is generated using AI-based pattern detection and URL feature evaluation."
-
-    return explanation
+    return description
 
 
 # ---------------------------
@@ -109,12 +104,11 @@ if st.button("Analyze"):
         else:
             st.success("✅ Legitimate Website")
 
-        st.info(f"🔎 Confidence: {confidence:.2f}%")
         st.progress(int(confidence))
 
-        # AI Explanation
-        explanation = generate_ai_explanation(url, prediction, confidence)
-        st.markdown(explanation)
+        # Clean AI Description
+        description = generate_ai_description(url, prediction, confidence)
+        st.write(description)
 
     else:
         st.warning("Please enter a URL")
