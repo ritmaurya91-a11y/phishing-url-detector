@@ -16,7 +16,6 @@ def detect_phishing(url):
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
 
-    # Remove www
     if domain.startswith("www."):
         domain = domain[4:]
 
@@ -32,34 +31,28 @@ def detect_phishing(url):
         "paypal", "microsoft", "bankofamerica"
     ]
 
-    # HTTPS Check
     if parsed.scheme != "https":
         score += 20
 
-    # IP Address Check
     if re.search(r"\d+\.\d+\.\d+\.\d+", url):
         score += 40
 
-    # Suspicious Keywords
     for word in suspicious_keywords:
         if word in url.lower():
             score += 15
 
-    # Long URL
     if len(url) > 100:
         score += 10
 
-    # Too many hyphens
     if url.count("-") > 2:
         score += 10
 
-    # 🔥 Strong Brand Typosquatting Detection
+    # Strong brand typo detection
     for brand in popular_brands:
         similarity = SequenceMatcher(None, domain_name, brand).ratio()
         if similarity > 0.80 and domain_name != brand:
-            return 1, 95.0  # Immediate high confidence phishing
+            return 1, 95.0
 
-    # Final decision
     if score >= 50:
         return 1, float(min(score, 100))
     else:
@@ -67,7 +60,7 @@ def detect_phishing(url):
 
 
 # ======================================
-# DETAILED AI ANALYSIS REPORT (10–15 LINES)
+# DETAILED AI ANALYSIS REPORT
 # ======================================
 def generate_ai_description(url, prediction, confidence):
     parsed = urlparse(url)
@@ -78,34 +71,21 @@ def generate_ai_description(url, prediction, confidence):
     explanation += f"• The analyzed URL is: {url}\n"
     explanation += f"• The extracted domain is: {domain}\n"
 
-    # HTTPS
     if parsed.scheme == "https":
         explanation += "• The website uses HTTPS protocol for encrypted communication.\n"
     else:
         explanation += "• The website does NOT use HTTPS protocol, increasing security risk.\n"
 
-    # IP Address
     if re.search(r"\d+\.\d+\.\d+\.\d+", url):
         explanation += "• The URL contains an IP address instead of a proper domain name.\n"
     else:
         explanation += "• No direct IP address detected in the URL structure.\n"
 
-    # URL Length
     explanation += f"• The total URL length is {len(url)} characters.\n"
-    if len(url) > 100:
-        explanation += "• The URL length is unusually long, which may indicate obfuscation.\n"
-    else:
-        explanation += "• The URL length appears to be within a normal range.\n"
 
-    # Hyphen Count
     hyphen_count = url.count("-")
     explanation += f"• The URL contains {hyphen_count} hyphen(s).\n"
-    if hyphen_count > 2:
-        explanation += "• Excessive hyphen usage may indicate domain manipulation.\n"
-    else:
-        explanation += "• Hyphen usage is within acceptable limits.\n"
 
-    # Final Verdict
     if prediction == 1:
         explanation += "\n🚨 Final Verdict: The website is classified as PHISHING.\n"
         explanation += f"• Risk Confidence Level: {confidence:.2f}%\n"
@@ -116,10 +96,9 @@ def generate_ai_description(url, prediction, confidence):
         explanation += "\n✅ Final Verdict: The website is classified as LEGITIMATE.\n"
         explanation += f"• Safety Confidence Level: {confidence:.2f}%\n"
         explanation += "• No major phishing indicators were detected during analysis.\n"
-        explanation += "• However, users should always verify domain authenticity before sharing data.\n"
-        explanation += "• Exercise general cybersecurity precautions when browsing online.\n"
+        explanation += "• Always verify domain authenticity before sharing data.\n"
 
-    explanation += "\n🛡 This assessment is generated using an AI-based phishing detection engine analyzing structural URL patterns and risk indicators."
+    explanation += "\n🛡 This assessment is generated using an AI-based phishing detection engine."
 
     return explanation
 
@@ -137,8 +116,18 @@ if st.button("Check URL"):
 
         if prediction == 1:
             st.error("🚨 Phishing Website Detected")
+
+            # 🔴 HIGH RISK DISPLAY
+            if confidence >= 90:
+                st.markdown("## 🔴 HIGH RISK WEBSITE")
+            elif confidence >= 70:
+                st.markdown("## 🟠 MEDIUM RISK WEBSITE")
+            else:
+                st.markdown("## 🟡 LOW RISK WEBSITE")
+
         else:
             st.success("✅ Legitimate Website")
+            st.markdown("## 🟢 LOW RISK WEBSITE")
 
         st.info(f"Confidence Score: {confidence:.2f}%")
 
