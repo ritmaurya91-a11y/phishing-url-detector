@@ -32,36 +32,34 @@ def detect_phishing(url):
         "paypal", "microsoft", "bankofamerica"
     ]
 
-    # 1️⃣ HTTPS Check
+    # HTTPS Check
     if parsed.scheme != "https":
         score += 20
 
-    # 2️⃣ IP Address in URL
+    # IP Address Check
     if re.search(r"\d+\.\d+\.\d+\.\d+", url):
         score += 40
 
-    # 3️⃣ Suspicious Keywords
+    # Suspicious Keywords
     for word in suspicious_keywords:
         if word in url.lower():
             score += 15
 
-    # 4️⃣ Long URL
+    # Long URL
     if len(url) > 100:
         score += 10
 
-    # 5️⃣ Too many hyphens
+    # Too many hyphens
     if url.count("-") > 2:
         score += 10
 
-    # 🔥 STRONG Brand Typosquatting Detection
+    # 🔥 Strong Brand Typosquatting Detection
     for brand in popular_brands:
         similarity = SequenceMatcher(None, domain_name, brand).ratio()
-
-        # Very similar but not exact match → immediate high risk
         if similarity > 0.80 and domain_name != brand:
-            return 1, 95.0
+            return 1, 95.0  # Immediate high confidence phishing
 
-    # Final Decision
+    # Final decision
     if score >= 50:
         return 1, float(min(score, 100))
     else:
@@ -69,25 +67,59 @@ def detect_phishing(url):
 
 
 # ======================================
-# AI ANALYSIS EXPLANATION
+# DETAILED AI ANALYSIS REPORT (10–15 LINES)
 # ======================================
 def generate_ai_description(url, prediction, confidence):
     parsed = urlparse(url)
-    explanation = ""
+    domain = parsed.netloc.lower()
 
-    if parsed.scheme != "https":
-        explanation += "⚠️ The website does not use HTTPS encryption. "
+    explanation = "🔎 Detailed Security Analysis Report:\n\n"
 
-    if re.search(r"\d+\.\d+\.\d+\.\d+", url):
-        explanation += "⚠️ The URL contains an IP address instead of a domain name. "
+    explanation += f"• The analyzed URL is: {url}\n"
+    explanation += f"• The extracted domain is: {domain}\n"
 
-    if len(url) > 100:
-        explanation += "⚠️ The URL is unusually long. "
-
-    if prediction == 1:
-        explanation += f"\n\n🚨 The AI system classified this website as **Phishing** with {confidence:.2f}% risk confidence."
+    # HTTPS
+    if parsed.scheme == "https":
+        explanation += "• The website uses HTTPS protocol for encrypted communication.\n"
     else:
-        explanation += f"\n\n✅ The AI system classified this website as **Legitimate** with {confidence:.2f}% safety confidence."
+        explanation += "• The website does NOT use HTTPS protocol, increasing security risk.\n"
+
+    # IP Address
+    if re.search(r"\d+\.\d+\.\d+\.\d+", url):
+        explanation += "• The URL contains an IP address instead of a proper domain name.\n"
+    else:
+        explanation += "• No direct IP address detected in the URL structure.\n"
+
+    # URL Length
+    explanation += f"• The total URL length is {len(url)} characters.\n"
+    if len(url) > 100:
+        explanation += "• The URL length is unusually long, which may indicate obfuscation.\n"
+    else:
+        explanation += "• The URL length appears to be within a normal range.\n"
+
+    # Hyphen Count
+    hyphen_count = url.count("-")
+    explanation += f"• The URL contains {hyphen_count} hyphen(s).\n"
+    if hyphen_count > 2:
+        explanation += "• Excessive hyphen usage may indicate domain manipulation.\n"
+    else:
+        explanation += "• Hyphen usage is within acceptable limits.\n"
+
+    # Final Verdict
+    if prediction == 1:
+        explanation += "\n🚨 Final Verdict: The website is classified as PHISHING.\n"
+        explanation += f"• Risk Confidence Level: {confidence:.2f}%\n"
+        explanation += "• This URL exhibits characteristics commonly associated with phishing campaigns.\n"
+        explanation += "• Users are strongly advised NOT to enter sensitive credentials.\n"
+        explanation += "• Avoid sharing financial or personal information on this website.\n"
+    else:
+        explanation += "\n✅ Final Verdict: The website is classified as LEGITIMATE.\n"
+        explanation += f"• Safety Confidence Level: {confidence:.2f}%\n"
+        explanation += "• No major phishing indicators were detected during analysis.\n"
+        explanation += "• However, users should always verify domain authenticity before sharing data.\n"
+        explanation += "• Exercise general cybersecurity precautions when browsing online.\n"
+
+    explanation += "\n🛡 This assessment is generated using an AI-based phishing detection engine analyzing structural URL patterns and risk indicators."
 
     return explanation
 
@@ -112,7 +144,7 @@ if st.button("Check URL"):
 
         st.subheader("🧠 AI Analysis Report")
         explanation = generate_ai_description(url, prediction, confidence)
-        st.write(explanation)
+        st.text(explanation)
 
     else:
         st.warning("Please enter a URL.")
