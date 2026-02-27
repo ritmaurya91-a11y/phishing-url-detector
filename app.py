@@ -1,110 +1,52 @@
 import streamlit as st
-from joblib import load
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 from feature_extractor import extract_features
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Phishing URL Detector", layout="centered")
 
-# ---------------- CUSTOM CSS ----------------
-st.markdown("""
-<style>
+st.title("🔐 AI Powered Phishing URL Detector")
+st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
 
-/* Background */
-.stApp {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    font-family: 'Segoe UI', sans-serif;
-    color: white;
-}
+# ---------------------------
+# Train Model Automatically
+# ---------------------------
+@st.cache_resource
+def train_model():
+    data = pd.read_csv("phishing.csv")
 
-/* Glass Container */
-.block-container {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 2rem;
-    border-radius: 20px;
-    backdrop-filter: blur(15px);
-    box-shadow: 0 0 25px rgba(0, 255, 255, 0.3);
-}
+    X = data.drop("label", axis=1)
+    y = data["label"]
 
-/* Animated Glow Title */
-@keyframes glow {
-    0% { text-shadow: 0 0 10px #00f2ff; }
-    50% { text-shadow: 0 0 25px #00f2ff, 0 0 40px #00f2ff; }
-    100% { text-shadow: 0 0 10px #00f2ff; }
-}
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-.glow-text {
-    font-size: 32px;
-    font-weight: bold;
-    text-align: center;
-    animation: glow 2s infinite alternate;
-    color: #ffffff;
-}
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
 
-/* Input Box */
-.stTextInput>div>div>input {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
-    border-radius: 10px;
-    border: 1px solid #00f2ff;
-}
+    accuracy = accuracy_score(y_test, model.predict(X_test))
+    return model, accuracy
 
-/* Button Style */
-.stButton>button {
-    background: linear-gradient(90deg, #00f2ff, #4facfe);
-    color: black;
-    font-weight: bold;
-    border-radius: 10px;
-    transition: 0.3s;
-}
+model, accuracy = train_model()
 
-.stButton>button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 15px #00f2ff;
-}
+st.success(f"Model Accuracy: {accuracy*100:.2f}%")
 
-/* Clear Visibility Text */
-.custom-text {
-    font-size: 14px;
-    color: #ffffff;
-    font-weight: 500;
-    text-shadow: 0 0 8px rgba(0,255,255,0.8);
-    animation: glow 2s infinite alternate;
-    text-align: center;
-    margin-top: -10px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- TITLE ----------------
-st.markdown('<div class="glow-text">🔐 AI Powered Phishing URL Detector</div>', unsafe_allow_html=True)
-
-st.markdown('<div class="custom-text">Enter a website URL to analyze security risk</div>', unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ---------------- LOAD MODEL ----------------
-model = load("model.pkl")
-
-# ---------------- INPUT ----------------
+# ---------------------------
+# User Input
+# ---------------------------
 url = st.text_input("Enter Website URL")
 
-# ---------------- BUTTON ----------------
 if st.button("Analyze"):
     if url:
         features = extract_features(url)
-
         prediction = model.predict([features])[0]
-        probability = model.predict_proba([features])[0].max()
 
         if prediction == 1:
             st.error("⚠️ Phishing Website Detected")
         else:
             st.success("✅ Legitimate Website")
-
-        st.markdown(
-            f"<div class='custom-text'>Confidence: {probability*100:.2f}%</div>",
-            unsafe_allow_html=True
-        )
     else:
         st.warning("Please enter a URL")
