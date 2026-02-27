@@ -8,9 +8,9 @@ st.set_page_config(page_title="AI Phishing Detector", page_icon="🔐")
 st.title("🔐 AI Powered Phishing URL Detector")
 st.write("Enter a website URL to check whether it is Legitimate or Phishing.")
 
-# ==============================
-# Smart AI Phishing Detection
-# ==============================
+# ======================================
+# SMART PHISHING DETECTION ENGINE
+# ======================================
 def detect_phishing(url):
     score = 0
     parsed = urlparse(url)
@@ -20,7 +20,6 @@ def detect_phishing(url):
     if domain.startswith("www."):
         domain = domain[4:]
 
-    # Extract main domain name
     domain_name = domain.split(".")[0]
 
     suspicious_keywords = [
@@ -46,36 +45,34 @@ def detect_phishing(url):
         if word in url.lower():
             score += 15
 
-    # 4️⃣ Very Long URL
+    # 4️⃣ Long URL
     if len(url) > 100:
         score += 10
 
-    # 5️⃣ Too Many Hyphens
+    # 5️⃣ Too many hyphens
     if url.count("-") > 2:
         score += 10
 
-    # 6️⃣ 🔥 Strong Brand Typosquatting Detection
+    # 🔥 STRONG Brand Typosquatting Detection
     for brand in popular_brands:
         similarity = SequenceMatcher(None, domain_name, brand).ratio()
 
-        # Very similar but not exact match
+        # Very similar but not exact match → immediate high risk
         if similarity > 0.80 and domain_name != brand:
-            score += 60
+            return 1, 95.0
 
     # Final Decision
     if score >= 50:
-        return 1, min(score, 100)
+        return 1, float(min(score, 100))
     else:
-        return 0, 100 - score
+        return 0, float(100 - score)
 
 
-# ==============================
-# AI Explanation Generator
-# ==============================
+# ======================================
+# AI ANALYSIS EXPLANATION
+# ======================================
 def generate_ai_description(url, prediction, confidence):
     parsed = urlparse(url)
-    domain = parsed.netloc.lower()
-
     explanation = ""
 
     if parsed.scheme != "https":
@@ -88,16 +85,16 @@ def generate_ai_description(url, prediction, confidence):
         explanation += "⚠️ The URL is unusually long. "
 
     if prediction == 1:
-        explanation += f"\n\n🚨 The AI system classified this website as **Phishing** with {confidence:.2f}% risk score."
+        explanation += f"\n\n🚨 The AI system classified this website as **Phishing** with {confidence:.2f}% risk confidence."
     else:
-        explanation += f"\n\n✅ The AI system classified this website as **Legitimate** with {confidence:.2f}% safety score."
+        explanation += f"\n\n✅ The AI system classified this website as **Legitimate** with {confidence:.2f}% safety confidence."
 
     return explanation
 
 
-# ==============================
-# User Input Section
-# ==============================
+# ======================================
+# USER INPUT
+# ======================================
 url = st.text_input("Enter Website URL")
 
 if st.button("Check URL"):
@@ -112,9 +109,6 @@ if st.button("Check URL"):
             st.success("✅ Legitimate Website")
 
         st.info(f"Confidence Score: {confidence:.2f}%")
-
-        if confidence < 70:
-            st.warning("⚠️ Low confidence result. Please verify manually.")
 
         st.subheader("🧠 AI Analysis Report")
         explanation = generate_ai_description(url, prediction, confidence)
