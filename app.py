@@ -1,114 +1,107 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from feature_extractor import extract_features
+import pickle
+import re
 from urllib.parse import urlparse
 
-st.set_page_config(page_title="AI Phishing Detector", layout="centered")
+# =========================
+# Load Trained Model
+# =========================
+model = pickle.load(open("phishing_model.pkl", "rb"))
+
+st.set_page_config(page_title="AI Phishing Detector", page_icon="🔐")
 
 st.title("🔐 AI Powered Phishing URL Detector")
+st.write("Enter a website URL to check whether it is Legitimate or Phishing.")
 
-# ---------------------------
-# Train Model
-# ---------------------------
-@st.cache_resource
-def train_model():
-    data = pd.read_csv("phishing.csv")
+# =========================
+# Feature Extraction
+# =========================
+def extract_features(url):
+    parsed = urlparse(url)
+    
+    return [
+        len(url),                         # URL Length
+        url.count("."),                   # Dot count
+        1 if parsed.scheme == "https" else 0,  # HTTPS
+        1 if re.search(r"\d+\.\d+\.\d+\.\d+", url) else 0,  # IP Address
+        url.count("-")                    # Hyphen count
+    ]
 
-    if "url" in data.columns:
-        features = []
-        for u in data["url"]:
-            features.append(extract_features(str(u)))
-
-        X = pd.DataFrame(features)
-        y = data.iloc[:, -1]
-    else:
-        X = data.iloc[:, :-1]
-        y = data.iloc[:, -1]
-
-    X = X.apply(pd.to_numeric, errors="coerce").fillna(0)
-    y = pd.to_numeric(y, errors="coerce").fillna(0)
-
-    X = X.astype(float)
-    y = y.astype(int)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-
-    return model
-
-model = train_model()
-
-# ---------------------------
+# =========================
 # AI Description Generator
-# ---------------------------
+# =========================
 def generate_ai_description(url, prediction, confidence):
     parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+
+    suspicious_keywords = [
+        "login", "verify", "update", "secure",
+        "account", "bank", "paypal", "confirm"
+    ]
+
+    popular_brands = [
+        "google.com", "facebook.com", "amazon.com",
+        "paypal.com", "bankofamerica.com", "microsoft.com"
+    ]
+
     description = ""
 
+    # Brand impersonation detection
+    for brand in popular_brands:
+        brand_name = brand.split(".")[0]
+        if brand_name in domain and brand not in domain:
+            description += f"⚠️ The domain appears to imitate the popular brand '{brand_name}', which is a common phishing technique. "
+
+    # Suspicious keyword detection
+    for word in suspicious_keywords:
+        if word in url.lower():
+            description += f"⚠️ The URL contains the keyword '{word}', often used in phishing attacks. "
+
+    # Long URL warning
+    if len(url) > 120:
+        description += "⚠️ The URL is unusually long, which can indicate obfuscation techniques. "
+
+    # HTTPS check
+    if parsed.scheme != "https":
+        description += "⚠️ The website does not use HTTPS encryption. "
+
+    # Final result explanation
     if prediction == 1:
-        description += "This website shows multiple suspicious characteristics commonly associated with phishing attacks. "
-
-        if len(url) > 100:
-            description += "The URL length is unusually long, which attackers often use to hide malicious intent. "
-
-        if url.count("-") > 2:
-            description += "Excessive hyphen usage suggests possible domain impersonation. "
-
-        if parsed.scheme != "https":
-            description += "The absence of HTTPS encryption reduces security and increases risk. "
-
-        if any(char.isdigit() for char in parsed.netloc):
-            description += "The presence of numbers in the domain may indicate brand mimicry attempts. "
-
-        description += f"Based on feature analysis, the model classified this site as high-risk with {confidence:.2f}% confidence."
-
+        description += f"\n\n🔎 The AI system classified this website as **Phishing** with {confidence:.2f}% confidence."
     else:
-        description += "The website structure appears consistent with legitimate domains. "
-
-        if parsed.scheme == "https":
-            description += "It uses secure HTTPS encryption. "
-
-        if len(url) < 100:
-            description += "The URL length is within a normal range. "
-
-        if url.count("-") <= 2:
-            description += "There are no excessive special characters in the domain. "
-
-        description += f"The model considers this site low-risk with {confidence:.2f}% confidence."
+        description += f"\n\n🔎 The AI system classified this website as **Legitimate** with {confidence:.2f}% confidence. However, always verify domain spelling carefully."
 
     return description
 
-
-# ---------------------------
+# =========================
 # User Input
-# ---------------------------
+# =========================
 url = st.text_input("Enter Website URL")
 
-if st.button("Analyze"):
-    if url:
-        features = extract_features(url)
+if st.button("Check URL"):
 
+    if url:
+
+        features = extract_features(url)
         prediction = model.predict([features])[0]
-        probabilities = model.predict_proba([features])[0]
-        confidence = np.max(probabilities) * 100
+        confidence = max(model.predict_proba([features])[0]) * 100
 
         if prediction == 1:
-            st.error("⚠️ Phishing Website Detected")
+            st.error("🚨 Phishing Website Detected")
         else:
             st.success("✅ Legitimate Website")
 
-        st.progress(int(confidence))
+        # Confidence display
+        st.info(f"Confidence Level: {confidence:.2f}%")
 
-        # Clean AI Description
-        description = generate_ai_description(url, prediction, confidence)
-        st.write(description)
+        # Low confidence warning
+        if confidence < 70:
+            st.warning("⚠️ Low confidence prediction. Manual verification recommended.")
+
+        # AI Explanation
+        st.subheader("🧠 AI Analysis Report")
+        explanation = generate_ai_description(url, prediction, confidence)
+        st.write(explanation)
 
     else:
-        st.warning("Please enter a URL")
+        st.warning("Please enter a URL.")
