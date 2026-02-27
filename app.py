@@ -5,10 +5,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from feature_extractor import extract_features
 
-st.set_page_config(page_title="Phishing URL Detector", layout="centered")
+st.set_page_config(page_title="Phishing URL Detector")
 
 st.title("🔐 AI Powered Phishing URL Detector")
-st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
+st.markdown("Detect whether a website URL is Phishing or Legitimate")
 
 # ---------------------------
 # Train Model Automatically
@@ -17,8 +17,9 @@ st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
 def train_model():
     data = pd.read_csv("phishing.csv")
 
-    X = data.drop("label", axis=1)
-    y = data["label"]
+    # Automatically use LAST column as label
+    X = data.iloc[:, :-1]
+    y = data.iloc[:, -1]
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
