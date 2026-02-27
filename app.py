@@ -4,8 +4,9 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from feature_extractor import extract_features
+from urllib.parse import urlparse
 
-st.set_page_config(page_title="Phishing URL Detector", layout="centered")
+st.set_page_config(page_title="AI Phishing Detector", layout="centered")
 
 st.title("🔐 AI Powered Phishing URL Detector")
 st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
@@ -17,7 +18,6 @@ st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
 def train_model():
     data = pd.read_csv("phishing.csv")
 
-    # If dataset contains raw URLs
     if "url" in data.columns:
         feature_list = []
         for url in data["url"]:
@@ -47,6 +47,51 @@ def train_model():
 model = train_model()
 
 # ---------------------------
+# AI Explanation Generator
+# ---------------------------
+def generate_ai_explanation(url, prediction, confidence):
+    parsed = urlparse(url)
+
+    reasons = []
+
+    if len(url) > 100:
+        reasons.append("The URL is unusually long, which is common in phishing attacks.")
+
+    if url.count("-") > 2:
+        reasons.append("Multiple hyphens detected in the domain, often used in fake websites.")
+
+    if "@" in url:
+        reasons.append("The '@' symbol can redirect users and is suspicious.")
+
+    if parsed.scheme != "https":
+        reasons.append("The website is not using HTTPS, which reduces security.")
+
+    if any(char.isdigit() for char in parsed.netloc):
+        reasons.append("Numbers detected in the domain, sometimes used to mimic real brands.")
+
+    if not reasons:
+        reasons.append("The URL structure appears normal with no major suspicious patterns.")
+
+    result_type = "Phishing" if prediction == 1 else "Legitimate"
+
+    explanation = f"""
+### 🤖 AI Security Analysis
+
+**Prediction:** {result_type}  
+**Confidence Level:** {confidence:.2f}%
+
+**Why?**
+
+"""
+    for r in reasons:
+        explanation += f"- {r}\n"
+
+    explanation += "\nThis analysis is generated using AI-based pattern detection and URL feature evaluation."
+
+    return explanation
+
+
+# ---------------------------
 # User Input
 # ---------------------------
 url = st.text_input("Enter Website URL")
@@ -64,10 +109,12 @@ if st.button("Analyze"):
         else:
             st.success("✅ Legitimate Website")
 
-        st.info(f"🔎 Website Confidence: {confidence:.2f}%")
-
-        # Optional Confidence Bar
+        st.info(f"🔎 Confidence: {confidence:.2f}%")
         st.progress(int(confidence))
+
+        # AI Explanation
+        explanation = generate_ai_explanation(url, prediction, confidence)
+        st.markdown(explanation)
 
     else:
         st.warning("Please enter a URL")
