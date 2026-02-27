@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from feature_extractor import extract_features
 
 st.set_page_config(page_title="Phishing URL Detector", layout="centered")
@@ -12,7 +11,7 @@ st.title("🔐 AI Powered Phishing URL Detector")
 st.markdown("Detect whether a website URL is **Phishing or Legitimate**")
 
 # ---------------------------
-# Train Model Safely
+# Train Model
 # ---------------------------
 @st.cache_resource
 def train_model():
@@ -30,7 +29,6 @@ def train_model():
         X = data.iloc[:, :-1]
         y = data.iloc[:, -1]
 
-    # Convert to numeric safely
     X = X.apply(pd.to_numeric, errors="coerce").fillna(0)
     y = pd.to_numeric(y, errors="coerce").fillna(0)
 
@@ -44,26 +42,32 @@ def train_model():
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
-    accuracy = accuracy_score(y_test, model.predict(X_test))
-    return model, accuracy
+    return model
 
-model, accuracy = train_model()
-
-st.success(f"Model Accuracy: {accuracy*100:.2f}%")
+model = train_model()
 
 # ---------------------------
-# URL Input
+# User Input
 # ---------------------------
 url = st.text_input("Enter Website URL")
 
 if st.button("Analyze"):
     if url:
         features = extract_features(url)
+
         prediction = model.predict([features])[0]
+        probabilities = model.predict_proba([features])[0]
+        confidence = np.max(probabilities) * 100
 
         if prediction == 1:
             st.error("⚠️ Phishing Website Detected")
         else:
             st.success("✅ Legitimate Website")
+
+        st.info(f"🔎 Website Confidence: {confidence:.2f}%")
+
+        # Optional Confidence Bar
+        st.progress(int(confidence))
+
     else:
         st.warning("Please enter a URL")
