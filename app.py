@@ -11,15 +11,25 @@ st.title("🔐 AI Powered Phishing URL Detector")
 st.markdown("Detect whether a website URL is Phishing or Legitimate")
 
 # ---------------------------
-# Train Model Automatically
+# Train Model Using Extracted Features
 # ---------------------------
 @st.cache_resource
 def train_model():
     data = pd.read_csv("phishing.csv")
 
-    # Automatically use LAST column as label
-    X = data.iloc[:, :-1]
-    y = data.iloc[:, -1]
+    # If dataset contains URL column
+    if "url" in data.columns:
+        feature_list = []
+
+        for url in data["url"]:
+            feature_list.append(extract_features(url))
+
+        X = pd.DataFrame(feature_list)
+        y = data.iloc[:, -1]   # last column as label
+    else:
+        # If dataset already numeric
+        X = data.iloc[:, :-1]
+        y = data.iloc[:, -1]
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
