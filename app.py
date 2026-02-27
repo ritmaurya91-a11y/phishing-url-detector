@@ -1,12 +1,7 @@
 import streamlit as st
-import pickle
 import re
 from urllib.parse import urlparse
-
-# =========================
-# Load Trained Model
-# =========================
-model = pickle.load(open("phishing_model.pkl", "rb"))
+from difflib import SequenceMatcher
 
 st.set_page_config(page_title="AI Phishing Detector", page_icon="🔐")
 
@@ -14,23 +9,10 @@ st.title("🔐 AI Powered Phishing URL Detector")
 st.write("Enter a website URL to check whether it is Legitimate or Phishing.")
 
 # =========================
-# Feature Extraction
+# Smart AI Detection Logic
 # =========================
-def extract_features(url):
-    parsed = urlparse(url)
-    
-    return [
-        len(url),                         # URL Length
-        url.count("."),                   # Dot count
-        1 if parsed.scheme == "https" else 0,  # HTTPS
-        1 if re.search(r"\d+\.\d+\.\d+\.\d+", url) else 0,  # IP Address
-        url.count("-")                    # Hyphen count
-    ]
-
-# =========================
-# AI Description Generator
-# =========================
-def generate_ai_description(url, prediction, confidence):
+def detect_phishing(url):
+    score = 0
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
 
@@ -44,34 +26,65 @@ def generate_ai_description(url, prediction, confidence):
         "paypal.com", "bankofamerica.com", "microsoft.com"
     ]
 
-    description = ""
+    # 1️⃣ HTTPS Check
+    if parsed.scheme != "https":
+        score += 20
 
-    # Brand impersonation detection
-    for brand in popular_brands:
-        brand_name = brand.split(".")[0]
-        if brand_name in domain and brand not in domain:
-            description += f"⚠️ The domain appears to imitate the popular brand '{brand_name}', which is a common phishing technique. "
+    # 2️⃣ IP Address in URL
+    if re.search(r"\d+\.\d+\.\d+\.\d+", url):
+        score += 25
 
-    # Suspicious keyword detection
+    # 3️⃣ Suspicious Keywords
     for word in suspicious_keywords:
         if word in url.lower():
-            description += f"⚠️ The URL contains the keyword '{word}', often used in phishing attacks. "
+            score += 15
 
-    # Long URL warning
+    # 4️⃣ Long URL
     if len(url) > 120:
-        description += "⚠️ The URL is unusually long, which can indicate obfuscation techniques. "
+        score += 10
 
-    # HTTPS check
+    # 5️⃣ Too Many Hyphens
+    if url.count("-") > 2:
+        score += 10
+
+    # 6️⃣ Brand Imitation Detection (Typosquatting)
+    for brand in popular_brands:
+        similarity = SequenceMatcher(None, domain, brand).ratio()
+        if 0.75 < similarity < 1:
+            score += 30
+
+    # Decision
+    if score >= 50:
+        return 1, min(score, 100)
+    else:
+        return 0, 100 - score
+
+
+# =========================
+# AI Explanation
+# =========================
+def generate_ai_description(url, prediction, confidence):
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+
+    description = ""
+
     if parsed.scheme != "https":
         description += "⚠️ The website does not use HTTPS encryption. "
 
-    # Final result explanation
+    if re.search(r"\d+\.\d+\.\d+\.\d+", url):
+        description += "⚠️ The URL contains an IP address instead of a domain name. "
+
+    if len(url) > 120:
+        description += "⚠️ The URL is unusually long. "
+
     if prediction == 1:
-        description += f"\n\n🔎 The AI system classified this website as **Phishing** with {confidence:.2f}% confidence."
+        description += f"\n\n🚨 The AI system classified this website as **Phishing** with {confidence:.2f}% risk score."
     else:
-        description += f"\n\n🔎 The AI system classified this website as **Legitimate** with {confidence:.2f}% confidence. However, always verify domain spelling carefully."
+        description += f"\n\n✅ The AI system classified this website as **Legitimate** with {confidence:.2f}% safety score."
 
     return description
+
 
 # =========================
 # User Input
@@ -82,23 +95,18 @@ if st.button("Check URL"):
 
     if url:
 
-        features = extract_features(url)
-        prediction = model.predict([features])[0]
-        confidence = max(model.predict_proba([features])[0]) * 100
+        prediction, confidence = detect_phishing(url)
 
         if prediction == 1:
             st.error("🚨 Phishing Website Detected")
         else:
             st.success("✅ Legitimate Website")
 
-        # Confidence display
-        st.info(f"Confidence Level: {confidence:.2f}%")
+        st.info(f"Confidence Score: {confidence:.2f}%")
 
-        # Low confidence warning
         if confidence < 70:
-            st.warning("⚠️ Low confidence prediction. Manual verification recommended.")
+            st.warning("⚠️ Low confidence result. Please verify manually.")
 
-        # AI Explanation
         st.subheader("🧠 AI Analysis Report")
         explanation = generate_ai_description(url, prediction, confidence)
         st.write(explanation)
